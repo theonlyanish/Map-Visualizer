@@ -72,7 +72,8 @@ select {
 .brand-panel,
 .status-panel,
 .control-panel,
-.legend-panel,
+.density-panel,
+.filter-panel,
 .event-dock,
 .hover-card {
   position: absolute;
@@ -166,6 +167,18 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
+.density-panel {
+  right: 40px;
+  bottom: 96px;
+  display: flex;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+}
+
 .mode-button {
   min-width: 84px;
   min-height: 40px;
@@ -187,34 +200,77 @@ h1 {
   transform: translateY(-1px);
 }
 
-.mode-button.is-active {
+.mode-button.is-active,
+.density-button.is-active {
   border-color: rgba(143, 240, 200, 0.42);
   background: rgba(143, 240, 200, 0.1);
   color: var(--accent);
 }
 
-.legend-panel {
+.density-button {
+  min-width: 70px;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 180ms ease,
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.density-button:hover,
+.density-button:focus-visible {
+  color: var(--ink);
+  transform: translateY(-1px);
+}
+
+.filter-panel {
   left: 56px;
   bottom: 40px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px 18px;
-  width: min(500px, calc(100vw - 36px));
+  width: min(560px, calc(100vw - 36px));
 }
 
-.legend-item {
+.filter-button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
+  min-height: 32px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
   font-size: 0.82rem;
+  transition:
+    opacity 180ms ease,
+    color 180ms ease,
+    border-color 180ms ease,
+    background 180ms ease;
 }
 
-.legend-item span {
+.filter-button span {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background: var(--dot);
   box-shadow: 0 0 20px var(--dot);
+}
+
+.filter-button.is-active {
+  border-color: rgba(244, 242, 232, 0.12);
+  background: rgba(244, 242, 232, 0.045);
+  color: var(--ink);
+}
+
+.filter-button:not(.is-active) {
+  opacity: 0.42;
 }
 
 .event-dock {
@@ -370,13 +426,25 @@ h1 {
     flex: 1;
   }
 
-  .legend-panel {
+  .density-panel {
+    right: 18px;
+    bottom: 74px;
+    left: 18px;
+    justify-content: space-between;
+  }
+
+  .density-button {
+    min-width: 0;
+    flex: 1;
+  }
+
+  .filter-panel {
     display: none;
   }
 
   .event-dock {
     right: 18px;
-    bottom: 146px;
+    bottom: 202px;
     left: 18px;
     width: auto;
     transform: none;

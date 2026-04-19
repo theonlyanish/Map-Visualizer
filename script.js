@@ -9,13 +9,21 @@ const hoverCard = document.querySelector("#hoverCard");
 const hoverType = document.querySelector("#hoverType");
 const hoverRepo = document.querySelector("#hoverRepo");
 const hoverActor = document.querySelector("#hoverActor");
-const modeButtons = [...document.querySelectorAll(".mode-button")];
+const modeButtons = [...document.querySelectorAll(".mode-button[data-mode]")];
+const densityButtons = [...document.querySelectorAll(".density-button")];
+const filterButtons = [...document.querySelectorAll(".filter-button")];
+const clearSky = document.querySelector("#clearSky");
 
 const API_URL = "https://api.github.com/events?per_page=100";
 const MAX_REPOS = 90;
 const MAX_METEORS = 180;
 const MAX_BURSTS = 100;
 const EVENT_SPAWN_MS = 430;
+const DENSITY_MS = {
+  calm: 920,
+  normal: 430,
+  storm: 135,
+};
 
 const eventVisuals = {
   PushEvent: { label: "Push", color: "#f5c86b", radius: 3.4, trail: 0.9 },
@@ -65,6 +73,8 @@ let totalEvents = 0;
 let lastFetchAt = 0;
 let pointer = { x: -999, y: -999 };
 let hoveredRepo = null;
+let spawnInterval = EVENT_SPAWN_MS;
+let activeDensity = "normal";
 
 const repoNodes = new Map();
 const seenEvents = new Set();
@@ -73,6 +83,7 @@ const replayDeck = [];
 const meteors = [];
 const bursts = [];
 const stars = [];
+const enabledTypes = new Set(filterButtons.map((button) => button.dataset.filter));
 
 const hashString = (value) => {
   let hash = 2166136261;
@@ -134,7 +145,10 @@ function getRepo(name) {
 
   if (repoNodes.size >= MAX_REPOS) {
     const dimmest = [...repoNodes.values()].sort((a, b) => a.energy - b.energy)[0];
-    if (dimmest) repoNodes.delete(dimmest.name);
+    if (dimmest) {
+      repoNodes.delete(dimmest.name);
+      updateRepoCount();
+    }
   }
 
   const repo = {
@@ -144,11 +158,19 @@ function getRepo(name) {
     energy: 0,
     pulse: 0,
     lastEvent: null,
+    visible: false,
   };
   placeRepo(repo);
   repoNodes.set(name, repo);
-  repoCount.textContent = repoNodes.size.toLocaleString();
   return repo;
+}
+
+function updateRepoCount() {
+  let visible = 0;
+  for (const repo of repoNodes.values()) {
+    if (repo.visible) visible += 1;
+  }
+  repoCount.textContent = visible.toLocaleString();
 }
 
 function normalizeEvent(event) {
@@ -244,7 +266,7 @@ function createShowcaseEvents(count = 12) {
 }
 
 function spawnFromQueue(now) {
-  if (now - lastSpawn < EVENT_SPAWN_MS) return;
+  if (now - lastSpawn < spawnInterval) return;
   lastSpawn = now;
 
   if (mode === "quiet") return;
@@ -258,11 +280,27 @@ function spawnFromQueue(now) {
     }
   }
 
-  const event = eventQueue.shift();
+  const event = dequeueRenderableEvent();
   if (!event) return;
 
   spawnMeteor(event);
   updateDock([event]);
+}
+
+function dequeueRenderableEvent() {
+  let attempts = eventQueue.length;
+  while (attempts > 0) {
+    const event = eventQueue.shift();
+    if (isEventEnabled(event)) return event;
+    attempts -= 1;
+  }
+  return null;
+}
+
+function isEventEnabled(event) {
+  if (!event) return false;
+  if (enabledTypes.has(event.type)) return true;
+  return !filterButtons.some((button) => button.dataset.filter === event.type);
 }
 
 function spawnMeteor(event) {
@@ -287,10 +325,6 @@ function spawnMeteor(event) {
     startY = Math.random() * height;
   }
 
-  repo.energy = Math.min(80, repo.energy + 11);
-  repo.pulse = 1;
-  repo.lastEvent = event;
-
   meteors.push({
     event,
     repo,
@@ -308,6 +342,15 @@ function spawnMeteor(event) {
   });
 
   if (meteors.length > MAX_METEORS) meteors.shift();
+}
+
+function markRepoImpact(repo, event) {
+  const wasHidden = !repo.visible;
+  repo.visible = true;
+  repo.energy = Math.min(88, repo.energy + 12);
+  repo.pulse = 1;
+  repo.lastEvent = event;
+  if (wasHidden) updateRepoCount();
 }
 
 function createBurst(x, y, color, type) {
@@ -391,6 +434,7 @@ function drawRepos(dt) {
   let closest = 18;
 
   for (const repo of repoNodes.values()) {
+    if (!repo.visible) continue;
     repo.energy = Math.max(0, repo.energy - dt * 0.011);
     repo.pulse = Math.max(0, repo.pulse - dt * 0.0024);
     const radius = 2.4 + Math.sqrt(repo.energy) * 0.52 + repo.pulse * 8;
@@ -468,6 +512,7 @@ function drawMeteors(dt) {
 
     if (t >= 1) {
       if (!meteor.landed) {
+        markRepoImpact(meteor.repo, meteor.event);
         createBurst(meteor.tx, meteor.ty, meteor.visual.color, meteor.event.type);
         meteor.landed = true;
       }
@@ -501,15 +546,17 @@ function drawBursts(dt) {
 function updateHoverCard() {
   if (!hoveredRepo || !hoveredRepo.lastEvent) {
     hoverCard.classList.remove("is-visible");
+    canvas.style.cursor = "default";
     return;
   }
 
   const visual = eventVisuals[hoveredRepo.lastEvent.type] || eventVisuals.default;
   hoverType.textContent = visual.label;
   hoverRepo.textContent = hoveredRepo.name;
-  hoverActor.textContent = `Last seen from ${hoveredRepo.lastEvent.actor}`;
+  hoverActor.textContent = `Last seen from ${hoveredRepo.lastEvent.actor} · click to open`;
   hoverCard.style.transform = `translate(${clamp(pointer.x + 16, 12, width - 246)}px, ${clamp(pointer.y + 16, 12, height - 94)}px)`;
   hoverCard.classList.add("is-visible");
+  canvas.style.cursor = "pointer";
 }
 
 let lastFrame = performance.now();
@@ -549,17 +596,72 @@ function setMode(nextMode) {
   }
 }
 
+function setDensity(nextDensity) {
+  activeDensity = nextDensity;
+  spawnInterval = DENSITY_MS[activeDensity] || DENSITY_MS.normal;
+  for (const button of densityButtons) {
+    button.classList.toggle("is-active", button.dataset.density === activeDensity);
+  }
+}
+
+function resetSky() {
+  meteors.length = 0;
+  bursts.length = 0;
+  eventQueue.length = 0;
+  repoNodes.clear();
+  hoveredRepo = null;
+  repoCount.textContent = "0";
+  eventDock.innerHTML = `
+    <article class="event-row is-empty">
+      <img
+        src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%23111410'/%3E%3Ccircle cx='40' cy='40' r='20' fill='%238ff0c8' fill-opacity='.35'/%3E%3C/svg%3E"
+        alt=""
+      />
+      <div>
+        <strong>Sky cleared</strong>
+        <span>New events will begin landing here.</span>
+      </div>
+    </article>
+  `;
+}
+
 window.addEventListener("resize", resize);
 window.addEventListener("pointermove", (event) => {
   pointer = { x: event.clientX, y: event.clientY };
+  canvas.style.cursor = hoveredRepo ? "pointer" : "default";
 });
 window.addEventListener("pointerleave", () => {
   pointer = { x: -999, y: -999 };
+  canvas.style.cursor = "default";
+});
+window.addEventListener("pointerdown", (event) => {
+  if (event.target !== canvas) return;
+  if (!hoveredRepo?.name || !/^[\w.-]+\/[\w.-]+$/.test(hoveredRepo.name)) return;
+  window.open(`https://github.com/${hoveredRepo.name}`, "_blank", "noopener,noreferrer");
 });
 
 for (const button of modeButtons) {
   button.addEventListener("click", () => setMode(button.dataset.mode));
 }
+
+for (const button of densityButtons) {
+  button.addEventListener("click", () => setDensity(button.dataset.density));
+}
+
+for (const button of filterButtons) {
+  button.addEventListener("click", () => {
+    const type = button.dataset.filter;
+    if (enabledTypes.has(type)) {
+      enabledTypes.delete(type);
+      button.classList.remove("is-active");
+    } else {
+      enabledTypes.add(type);
+      button.classList.add("is-active");
+    }
+  });
+}
+
+clearSky.addEventListener("click", resetSky);
 
 resize();
 fetchEvents();

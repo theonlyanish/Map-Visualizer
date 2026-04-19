@@ -39,14 +39,40 @@
         <button class="mode-button is-active" type="button" data-mode="live">Live</button>
         <button class="mode-button" type="button" data-mode="showcase">Showcase</button>
         <button class="mode-button" type="button" data-mode="quiet">Quiet</button>
+        <button id="clearSky" class="mode-button" type="button">Clear</button>
       </section>
 
-      <section class="legend-panel" aria-label="Event legend">
-        <div class="legend-item"><span style="--dot: #f5c86b"></span>Push</div>
-        <div class="legend-item"><span style="--dot: #8ff0c8"></span>Star</div>
-        <div class="legend-item"><span style="--dot: #78d7ff"></span>Fork</div>
-        <div class="legend-item"><span style="--dot: #ff8e8e"></span>PR</div>
-        <div class="legend-item"><span style="--dot: #d6ef7f"></span>Release</div>
+      <section class="density-panel" aria-label="Meteor density">
+        <button class="density-button" type="button" data-density="calm">Calm</button>
+        <button class="density-button is-active" type="button" data-density="normal">Pulse</button>
+        <button class="density-button" type="button" data-density="storm">Storm</button>
+      </section>
+
+      <section class="filter-panel" aria-label="Event filters">
+        <button class="filter-button is-active" type="button" data-filter="PushEvent">
+          <span style="--dot: #f5c86b"></span>Push
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="WatchEvent">
+          <span style="--dot: #8ff0c8"></span>Star
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="ForkEvent">
+          <span style="--dot: #78d7ff"></span>Fork
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="PullRequestEvent">
+          <span style="--dot: #ff8e8e"></span>PR
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="IssuesEvent">
+          <span style="--dot: #f7a7d8"></span>Issue
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="IssueCommentEvent">
+          <span style="--dot: #c3b5ff"></span>Comment
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="ReleaseEvent">
+          <span style="--dot: #d6ef7f"></span>Release
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="CreateEvent">
+          <span style="--dot: #cce98b"></span>Create
+        </button>
       </section>
 
       <section id="eventDock" class="event-dock" aria-label="Recent GitHub events">
