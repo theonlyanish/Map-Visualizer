@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Starfall turns public GitHub activity into a live meteor shower of pushes, stars, forks, issues, pull requests, and releases."
+    />
+    <title>Starfall | GitHub Activity Meteor Shower</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <canvas id="sky" aria-label="Animated GitHub activity meteor shower"></canvas>
+
+      <section class="brand-panel" aria-labelledby="app-title">
+        <p class="eyebrow">GitHub public events</p>
+        <h1 id="app-title">Starfall</h1>
+        <p class="lede">Open-source activity, rendered as a meteor field.</p>
+      </section>
+
+      <section class="status-panel" aria-label="Live status">
+        <div>
+          <span class="metric-label">Signal</span>
+          <strong id="signalStatus">connecting</strong>
+        </div>
+        <div>
+          <span class="metric-label">Events</span>
+          <strong id="eventCount">0</strong>
+        </div>
+        <div>
+          <span class="metric-label">Repos</span>
+          <strong id="repoCount">0</strong>
+        </div>
+      </section>
+
+      <section class="control-panel" aria-label="Visualization controls">
+        <button class="mode-button is-active" type="button" data-mode="live">Live</button>
+        <button class="mode-button" type="button" data-mode="showcase">Showcase</button>
+        <button class="mode-button" type="button" data-mode="quiet">Quiet</button>
+      </section>
+
+      <section class="legend-panel" aria-label="Event legend">
+        <div class="legend-item"><span style="--dot: #f5c86b"></span>Push</div>
+        <div class="legend-item"><span style="--dot: #8ff0c8"></span>Star</div>
+        <div class="legend-item"><span style="--dot: #78d7ff"></span>Fork</div>
+        <div class="legend-item"><span style="--dot: #ff8e8e"></span>PR</div>
+        <div class="legend-item"><span style="--dot: #d6ef7f"></span>Release</div>
+      </section>
+
+      <section id="eventDock" class="event-dock" aria-label="Recent GitHub events">
+        <article class="event-row is-empty">
+          <img
+            src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 80 80'%3E%3Crect width='80' height='80' fill='%23111410'/%3E%3Ccircle cx='40' cy='40' r='20' fill='%238ff0c8' fill-opacity='.35'/%3E%3C/svg%3E"
+            alt=""
+          />
+          <div>
+            <strong>Waiting for first signal</strong>
+            <span>GitHub events will land here.</span>
+          </div>
+        </article>
+      </section>
+
+      <aside id="hoverCard" class="hover-card" aria-live="polite">
+        <span id="hoverType">event</span>
+        <strong id="hoverRepo">Repository</strong>
+        <small id="hoverActor">Actor</small>
+      </aside>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
