@@ -38,7 +38,7 @@ const eventVisuals = {
   default: { label: "Event", color: "#d8dccb", radius: 2.4, trail: 0.45 },
 };
 
-const showcaseRepos = [
+const fallbackRepos = [
   "vercel/next.js",
   "facebook/react",
   "microsoft/vscode",
@@ -53,7 +53,7 @@ const showcaseRepos = [
   "tailwindlabs/tailwindcss",
 ];
 
-const showcaseActors = [
+const fallbackActors = [
   "octocat",
   "frontend-signal",
   "ship-it-bot",
@@ -201,7 +201,7 @@ function enqueueEvents(events, source = "live") {
   if (replayDeck.length > 360) replayDeck.splice(0, replayDeck.length - 360);
   totalEvents += fresh.length;
   eventCount.textContent = totalEvents.toLocaleString();
-  signalStatus.textContent = source === "live" ? "live" : "showcase";
+  signalStatus.textContent = source === "live" ? "live" : "offline";
 }
 
 async function fetchEvents() {
@@ -236,10 +236,10 @@ async function fetchEvents() {
     enqueueEvents(events, "live");
     updateDock(events.slice(0, 4).map(normalizeEvent));
   } catch (error) {
-    signalStatus.textContent = "showcase";
+    signalStatus.textContent = "offline";
     schedulePoll(90000);
     if (replayDeck.length === 0) {
-      enqueueEvents(createShowcaseEvents(36), "showcase");
+      enqueueEvents(createFallbackEvents(36), "fallback");
     }
   }
 }
@@ -249,14 +249,14 @@ function schedulePoll(delay) {
   pollTimer = window.setTimeout(fetchEvents, delay);
 }
 
-function createShowcaseEvents(count = 12) {
+function createFallbackEvents(count = 12) {
   const types = Object.keys(eventVisuals).filter((type) => type !== "default");
   return Array.from({ length: count }, (_, index) => {
-    const repo = showcaseRepos[Math.floor(Math.random() * showcaseRepos.length)];
+    const repo = fallbackRepos[Math.floor(Math.random() * fallbackRepos.length)];
     const type = types[Math.floor(Math.random() * types.length)];
-    const actor = showcaseActors[Math.floor(Math.random() * showcaseActors.length)];
+    const actor = fallbackActors[Math.floor(Math.random() * fallbackActors.length)];
     return {
-      id: `showcase-${Date.now()}-${index}-${Math.random()}`,
+      id: `fallback-${Date.now()}-${index}-${Math.random()}`,
       type,
       repo: { name: repo },
       actor: { login: actor, avatar_url: "" },
@@ -272,9 +272,7 @@ function spawnFromQueue(now) {
   if (mode === "quiet") return;
 
   if (eventQueue.length === 0) {
-    if (mode === "showcase") {
-      eventQueue.push(...createShowcaseEvents(10).map(normalizeEvent));
-    } else if (replayDeck.length && Date.now() - lastFetchAt > 14000) {
+    if (replayDeck.length && Date.now() - lastFetchAt > 14000) {
       const sample = replayDeck[Math.floor(Math.random() * replayDeck.length)];
       eventQueue.push({ ...sample, id: `replay-${Date.now()}-${Math.random()}` });
     }
@@ -588,9 +586,6 @@ function setMode(nextMode) {
   if (mode === "quiet") {
     signalStatus.textContent = "quiet";
     eventQueue.length = 0;
-  } else if (mode === "showcase") {
-    signalStatus.textContent = "showcase";
-    eventQueue.push(...createShowcaseEvents(24).map(normalizeEvent));
   } else {
     fetchEvents();
   }
