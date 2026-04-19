@@ -8,6 +8,8 @@
       content="Starfall turns public GitHub activity into a live meteor shower of pushes, stars, forks, issues, pull requests, and releases."
     />
     <title>Starfall | GitHub Activity Meteor Shower</title>
+    <link rel="icon" type="image/png" href="assets/favicon.png" />
+    <link rel="apple-touch-icon" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -30,7 +32,7 @@
           <strong id="eventCount">0</strong>
         </div>
         <div>
-          <span class="metric-label">Repos</span>
+          <span class="metric-label">Active repos</span>
           <strong id="repoCount">0</strong>
         </div>
       </section>
@@ -71,6 +73,12 @@
         </button>
         <button class="filter-button is-active" type="button" data-filter="CreateEvent">
           <span style="--dot: #cce98b"></span>Create
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="DeleteEvent">
+          <span style="--dot: #a8aa9a"></span>Delete
+        </button>
+        <button class="filter-button is-active" type="button" data-filter="default">
+          <span style="--dot: #d8dccb"></span>Event
         </button>
       </section>
 

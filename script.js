@@ -15,9 +15,10 @@ const filterButtons = [...document.querySelectorAll(".filter-button")];
 const clearSky = document.querySelector("#clearSky");
 
 const API_URL = "https://api.github.com/events?per_page=100";
-const MAX_REPOS = 90;
+const MAX_REPOS = 100;
 const MAX_METEORS = 180;
-const MAX_BURSTS = 100;
+const MAX_BURSTS = 140;
+const MAX_PHENOMENA = 60;
 const EVENT_SPAWN_MS = 430;
 const DENSITY_MS = {
   calm: 920,
@@ -83,6 +84,7 @@ const replayDeck = [];
 const meteors = [];
 const bursts = [];
 const stars = [];
+const phenomena = [];
 const enabledTypes = new Set(filterButtons.map((button) => button.dataset.filter));
 
 const hashString = (value) => {
@@ -281,7 +283,7 @@ function spawnFromQueue(now) {
   const event = dequeueRenderableEvent();
   if (!event) return;
 
-  spawnMeteor(event);
+  spawnEventVisual(event);
   updateDock([event]);
 }
 
@@ -298,7 +300,23 @@ function dequeueRenderableEvent() {
 function isEventEnabled(event) {
   if (!event) return false;
   if (enabledTypes.has(event.type)) return true;
-  return !filterButtons.some((button) => button.dataset.filter === event.type);
+  const hasSpecificFilter = filterButtons.some((button) => button.dataset.filter === event.type);
+  if (hasSpecificFilter) return false;
+  return enabledTypes.has("default");
+}
+
+function spawnEventVisual(event) {
+  if (event.type === "ReleaseEvent") {
+    spawnSupernova(event);
+    return;
+  }
+
+  if (event.type === "CreateEvent") {
+    spawnConstellationIgnition(event);
+    return;
+  }
+
+  spawnMeteor(event);
 }
 
 function spawnMeteor(event) {
@@ -342,11 +360,65 @@ function spawnMeteor(event) {
   if (meteors.length > MAX_METEORS) meteors.shift();
 }
 
-function markRepoImpact(repo, event) {
+function spawnSupernova(event) {
+  const repo = getRepo(event.repo);
+  const visual = eventVisuals[event.type] || eventVisuals.default;
+  markRepoImpact(repo, event, 54, 1.9);
+  createBurst(repo.x, repo.y, visual.color, event.type);
+  phenomena.push({
+    kind: "supernova",
+    event,
+    repo,
+    x: repo.x,
+    y: repo.y,
+    color: visual.color,
+    age: 0,
+    life: 1900,
+    rotation: Math.random() * Math.PI,
+  });
+  trimPhenomena();
+}
+
+function spawnConstellationIgnition(event) {
+  const repo = getRepo(event.repo);
+  const visual = eventVisuals[event.type] || eventVisuals.default;
+  const seed = hashString(`${event.id}-${event.repo}-create`);
+  const nodes = Array.from({ length: 4 }, (_, index) => {
+    const angle = (seed % 628) / 100 + index * 1.48 + Math.random() * 0.28;
+    const length = 24 + ((seed >> (index * 4)) % 34);
+    return {
+      angle,
+      length,
+      delay: index * 0.12,
+    };
+  });
+
+  markRepoImpact(repo, event, 34, 1.55);
+  phenomena.push({
+    kind: "ignition",
+    event,
+    repo,
+    x: repo.x,
+    y: repo.y,
+    color: visual.color,
+    age: 0,
+    life: 2300,
+    nodes,
+  });
+  trimPhenomena();
+}
+
+function trimPhenomena() {
+  if (phenomena.length > MAX_PHENOMENA) {
+    phenomena.splice(0, phenomena.length - MAX_PHENOMENA);
+  }
+}
+
+function markRepoImpact(repo, event, energyBoost = 12, pulse = 1) {
   const wasHidden = !repo.visible;
   repo.visible = true;
-  repo.energy = Math.min(88, repo.energy + 12);
-  repo.pulse = 1;
+  repo.energy = Math.min(98, repo.energy + energyBoost);
+  repo.pulse = Math.max(repo.pulse, pulse);
   repo.lastEvent = event;
   if (wasHidden) updateRepoCount();
 }
@@ -519,6 +591,112 @@ function drawMeteors(dt) {
   }
 }
 
+function drawPhenomena(dt) {
+  for (let i = phenomena.length - 1; i >= 0; i -= 1) {
+    const effect = phenomena[i];
+    effect.age += dt;
+    const t = clamp(effect.age / effect.life, 0, 1);
+    const alpha = 1 - t;
+
+    if (effect.kind === "supernova") {
+      drawSupernova(effect, t, alpha);
+    } else if (effect.kind === "ignition") {
+      drawConstellationIgnition(effect, t, alpha);
+    }
+
+    if (t >= 1) {
+      phenomena.splice(i, 1);
+    }
+  }
+}
+
+function drawSupernova(effect, t, alpha) {
+  const core = 5 + Math.sin(t * Math.PI) * 13;
+  const ringOne = 18 + t * 72;
+  const ringTwo = 8 + t * 118;
+
+  ctx.save();
+  ctx.translate(effect.x, effect.y);
+  ctx.rotate(effect.rotation + t * 0.6);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, ringTwo);
+  glow.addColorStop(0, `${effect.color}dd`);
+  glow.addColorStop(0.22, `${effect.color}55`);
+  glow.addColorStop(1, `${effect.color}00`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(0, 0, ringTwo, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(214, 239, 127, ${0.72 * alpha})`;
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(0, 0, ringOne, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = `rgba(244, 242, 232, ${0.46 * alpha})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, ringTwo, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (let arm = 0; arm < 6; arm += 1) {
+    const angle = (Math.PI * 2 * arm) / 6;
+    const length = 22 + t * 80;
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(214, 239, 127, ${0.48 * alpha})`;
+    ctx.lineWidth = 1.2;
+    ctx.moveTo(Math.cos(angle) * core, Math.sin(angle) * core);
+    ctx.lineTo(Math.cos(angle) * length, Math.sin(angle) * length);
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.fillStyle = effect.color;
+  ctx.arc(0, 0, core, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawConstellationIgnition(effect, t, alpha) {
+  ctx.save();
+  ctx.translate(effect.x, effect.y);
+
+  ctx.strokeStyle = `rgba(204, 233, 139, ${0.32 * alpha})`;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, 14 + t * 24, 0, Math.PI * 2);
+  ctx.stroke();
+
+  for (const node of effect.nodes) {
+    const localT = clamp((t - node.delay) / 0.42, 0, 1);
+    if (localT <= 0) continue;
+
+    const eased = 1 - Math.pow(1 - localT, 3);
+    const x = Math.cos(node.angle) * node.length * eased;
+    const y = Math.sin(node.angle) * node.length * eased;
+
+    ctx.beginPath();
+    ctx.strokeStyle = `rgba(204, 233, 139, ${0.5 * alpha})`;
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, 0);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.fillStyle = effect.color;
+    ctx.arc(x, y, 2.2 + localT * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const corePulse = 3 + Math.sin(t * Math.PI * 3) * 1.4;
+  ctx.beginPath();
+  ctx.fillStyle = effect.color;
+  ctx.arc(0, 0, corePulse, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawBursts(dt) {
   for (let i = bursts.length - 1; i >= 0; i -= 1) {
     const burst = bursts[i];
@@ -570,6 +748,7 @@ function frame(now) {
 
   drawStars(now);
   drawRepos(dt);
+  drawPhenomena(dt);
   drawMeteors(dt);
   drawBursts(dt);
   updateHoverCard();
@@ -602,6 +781,7 @@ function setDensity(nextDensity) {
 function resetSky() {
   meteors.length = 0;
   bursts.length = 0;
+  phenomena.length = 0;
   eventQueue.length = 0;
   repoNodes.clear();
   hoveredRepo = null;

@@ -23,7 +23,17 @@ Open `index.html` in a browser. No build step is required.
 
 ## Controls
 
-- Event filters toggle which GitHub event types become meteors.
+- Event filters toggle which GitHub event types are rendered.
 - Density controls adjust the pacing from calm to storm.
 - Clear resets the visible sky without changing the selected mode.
 - Clicking a visible repository constellation opens that repository on GitHub.
+
+## Visual language
+
+- Most events arrive as meteors.
+- Releases bloom as supernovas at the repository.
+- Create events light up as new constellation nodes.
+
+## Assets
+
+- `assets/favicon.png`: generated with the built-in image generation tool from a Starfall favicon prompt.
