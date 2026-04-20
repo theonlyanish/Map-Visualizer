@@ -719,7 +719,7 @@ function spawnMeteor(event) {
     ty: target.y,
     age: 0,
     life: 1300 + Math.random() * 900,
-    curve: (Math.random() - 0.5) * 180,
+    curve: (Math.random() - 0.5) * (eventVisuals[event.type] ? 180 : 400),
     landed: false,
   });
 
@@ -1081,24 +1081,36 @@ function drawMeteors(dt) {
     meteor.x = lerp(x1, x2, eased);
     meteor.y = lerp(y1, y2, eased);
 
-    const tail = 34 + meteor.visual.trail * 78;
-    const dx = meteor.x - x1;
-    const dy = meteor.y - y1;
-    const len = Math.max(1, Math.hypot(dx, dy));
-    const tx = meteor.x - (dx / len) * tail;
-    const ty = meteor.y - (dy / len) * tail;
     const alpha = Math.sin(t * Math.PI);
+    const isArcEvent = !eventVisuals[meteor.event.type];
 
-    const gradient = ctx.createLinearGradient(tx, ty, meteor.x, meteor.y);
-    gradient.addColorStop(0, `${meteor.visual.color}00`);
-    gradient.addColorStop(1, meteor.visual.color);
-
-    ctx.beginPath();
-    ctx.strokeStyle = gradient;
-    ctx.lineWidth = 1.4 + meteor.visual.radius * 0.42;
-    ctx.moveTo(tx, ty);
-    ctx.lineTo(meteor.x, meteor.y);
-    ctx.stroke();
+    if (isArcEvent) {
+      const partialCx = lerp(meteor.sx, midX, eased);
+      const partialCy = lerp(meteor.sy, midY, eased);
+      const trailAlpha = Math.round(alpha * 0.65 * 255).toString(16).padStart(2, "0");
+      ctx.beginPath();
+      ctx.moveTo(meteor.sx, meteor.sy);
+      ctx.quadraticCurveTo(partialCx, partialCy, meteor.x, meteor.y);
+      ctx.strokeStyle = meteor.visual.color + trailAlpha;
+      ctx.lineWidth = 1.2 + meteor.visual.radius * 0.38;
+      ctx.stroke();
+    } else {
+      const tail = 34 + meteor.visual.trail * 78;
+      const dx = meteor.x - x1;
+      const dy = meteor.y - y1;
+      const len = Math.max(1, Math.hypot(dx, dy));
+      const tailX = meteor.x - (dx / len) * tail;
+      const tailY = meteor.y - (dy / len) * tail;
+      const gradient = ctx.createLinearGradient(tailX, tailY, meteor.x, meteor.y);
+      gradient.addColorStop(0, `${meteor.visual.color}00`);
+      gradient.addColorStop(1, meteor.visual.color);
+      ctx.beginPath();
+      ctx.strokeStyle = gradient;
+      ctx.lineWidth = 1.4 + meteor.visual.radius * 0.42;
+      ctx.moveTo(tailX, tailY);
+      ctx.lineTo(meteor.x, meteor.y);
+      ctx.stroke();
+    }
 
     ctx.beginPath();
     ctx.fillStyle = meteor.visual.color;
@@ -1119,7 +1131,8 @@ function drawMeteors(dt) {
     if (t >= 1) {
       if (!meteor.landed) {
         markRepoImpact(meteor.repo, meteor.event);
-        createBurst(meteor.tx, meteor.ty, meteor.visual.color, meteor.event.type);
+        const center = projectRepo(meteor.repo);
+        createBurst(center.x, center.y, meteor.visual.color, meteor.event.type);
         meteor.landed = true;
       }
       meteors.splice(i, 1);
