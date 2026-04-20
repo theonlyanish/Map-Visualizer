@@ -196,6 +196,7 @@ let activeDensity = "normal";
 let activeRegion = "all";
 let viewMode = "starfall";
 let dragState = null;
+let cameraTween = null;
 const camera = {
   rotX: -0.18,
   rotY: 0.34,
@@ -225,6 +226,7 @@ const hashString = (value) => {
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const easeInOutCubic = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 function logApi(...args) {
   console.log("[Starfall API]", ...args);
@@ -481,16 +483,38 @@ function rotatePoint(point) {
 
 function projectPoint(point) {
   const rotated = rotatePoint(point);
+  return projectRotatedPoint(rotated, camera);
+}
+
+function projectRotatedPoint(rotated, cameraState) {
   const perspective = 960;
   const depth = perspective / Math.max(120, perspective + rotated.z + 420);
   const viewportScale = Math.min(width / 1180, height / 720) * 1.45;
-  const scale = camera.zoom * viewportScale * depth;
+  const scale = cameraState.zoom * viewportScale * depth;
   return {
-    x: width * 0.5 + camera.panX + rotated.x * scale,
-    y: height * 0.52 + camera.panY + rotated.y * scale,
+    x: width * 0.5 + cameraState.panX + rotated.x * scale,
+    y: height * 0.52 + cameraState.panY + rotated.y * scale,
     depth: rotated.z,
     scale,
   };
+}
+
+function rotatePointWithCamera(point, cameraState) {
+  const cosY = Math.cos(cameraState.rotY);
+  const sinY = Math.sin(cameraState.rotY);
+  const cosX = Math.cos(cameraState.rotX);
+  const sinX = Math.sin(cameraState.rotX);
+
+  const xzX = point.x * cosY - point.z * sinY;
+  const xzZ = point.x * sinY + point.z * cosY;
+  const yzY = point.y * cosX - xzZ * sinX;
+  const yzZ = point.y * sinX + xzZ * cosX;
+
+  return { x: xzX, y: yzY, z: yzZ };
+}
+
+function projectPointWithCamera(point, cameraState) {
+  return projectRotatedPoint(rotatePointWithCamera(point, cameraState), cameraState);
 }
 
 function projectRepo(repo) {
@@ -1459,11 +1483,128 @@ function updateHoverCard() {
   updateSurfaceCursor();
 }
 
+function cameraSnapshot() {
+  return {
+    rotX: camera.rotX,
+    rotY: camera.rotY,
+    zoom: camera.zoom,
+    panX: camera.panX,
+    panY: camera.panY,
+  };
+}
+
+function applyCameraState(state) {
+  camera.rotX = state.rotX;
+  camera.rotY = state.rotY;
+  camera.zoom = state.zoom;
+  camera.panX = state.panX;
+  camera.panY = state.panY;
+}
+
+function startCameraTween(target, duration = 1350) {
+  cameraTween = {
+    from: cameraSnapshot(),
+    to: target,
+    start: performance.now(),
+    duration,
+  };
+}
+
+function cancelCameraTween() {
+  cameraTween = null;
+}
+
+function updateCameraTween(now) {
+  if (!cameraTween) return;
+
+  const t = clamp((now - cameraTween.start) / cameraTween.duration, 0, 1);
+  const eased = easeInOutCubic(t);
+  applyCameraState({
+    rotX: lerp(cameraTween.from.rotX, cameraTween.to.rotX, eased),
+    rotY: lerp(cameraTween.from.rotY, cameraTween.to.rotY, eased),
+    zoom: lerp(cameraTween.from.zoom, cameraTween.to.zoom, eased),
+    panX: lerp(cameraTween.from.panX, cameraTween.to.panX, eased),
+    panY: lerp(cameraTween.from.panY, cameraTween.to.panY, eased),
+  });
+
+  if (t >= 1) cameraTween = null;
+}
+
+function telescopeTargetForRegion(regionId) {
+  if (regionId === "all") {
+    return overviewCameraTarget();
+  }
+
+  const region = atlasRegionMap.get(regionId);
+  if (!region) return cameraSnapshot();
+
+  const target = {
+    rotY: Math.atan2(region.center.x, region.center.z + 520) * -0.65,
+    rotX: clamp(region.center.y / 900, -0.45, 0.45),
+    zoom: 1.42,
+    panX: 0,
+    panY: 0,
+  };
+  const projected = projectPointWithCamera(region.center, target);
+  target.panX = width * 0.5 - projected.x;
+  target.panY = height * 0.52 - projected.y;
+  return target;
+}
+
+function overviewCameraTarget() {
+  const base = {
+    rotX: -0.06,
+    rotY: 0.08,
+    zoom: 1,
+    panX: 0,
+    panY: 0,
+  };
+  const baseBounds = projectedAtlasBounds(base);
+  const availableWidth = Math.max(420, width - 180);
+  const availableHeight = Math.max(360, height - 190);
+  const fitZoom = Math.min(0.9, availableWidth / baseBounds.width, availableHeight / baseBounds.height) * 0.92;
+  const target = {
+    ...base,
+    zoom: clamp(fitZoom, 0.46, 0.82),
+  };
+  const targetBounds = projectedAtlasBounds(target);
+  target.panX = width * 0.5 - targetBounds.centerX;
+  target.panY = height * 0.52 - targetBounds.centerY;
+  return target;
+}
+
+function projectedAtlasBounds(cameraState) {
+  const bounds = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity,
+  };
+
+  for (const region of atlasRegions) {
+    const projected = projectPointWithCamera(region.center, cameraState);
+    const radius = 170 * projected.scale;
+    bounds.minX = Math.min(bounds.minX, projected.x - radius);
+    bounds.maxX = Math.max(bounds.maxX, projected.x + radius);
+    bounds.minY = Math.min(bounds.minY, projected.y - radius * 0.82);
+    bounds.maxY = Math.max(bounds.maxY, projected.y + radius * 0.82);
+  }
+
+  return {
+    ...bounds,
+    width: Math.max(1, bounds.maxX - bounds.minX),
+    height: Math.max(1, bounds.maxY - bounds.minY),
+    centerX: (bounds.minX + bounds.maxX) * 0.5,
+    centerY: (bounds.minY + bounds.maxY) * 0.5,
+  };
+}
+
 let lastFrame = performance.now();
 function frame(now) {
   const dt = Math.min(48, now - lastFrame);
   lastFrame = now;
 
+  updateCameraTween(now);
   spawnFromQueue(now);
 
   ctx.clearRect(0, 0, width, height);
@@ -1495,15 +1636,16 @@ function setViewMode(nextViewMode) {
 
   hoveredRepo = null;
   dragState = null;
-  camera.panX = 0;
-  camera.panY = 0;
 
   if (viewMode === "galaxy") {
     setRegion(activeRegion);
   } else {
+    cancelCameraTween();
     camera.rotX = -0.18;
     camera.rotY = 0.34;
     camera.zoom = 1.2;
+    camera.panX = 0;
+    camera.panY = 0;
   }
 
   setDensity(activeDensity);
@@ -1540,20 +1682,11 @@ function setRegion(nextRegion) {
     button.classList.toggle("is-active", button.dataset.region === activeRegion);
   }
 
-  if (activeRegion === "all") {
-    camera.zoom = Math.max(0.9, Math.min(camera.zoom, 1.15));
-    camera.panX = 0;
-    camera.panY = 0;
+  if (viewMode !== "galaxy") {
     return;
   }
 
-  const region = atlasRegionMap.get(activeRegion);
-  if (!region) return;
-  camera.zoom = Math.max(camera.zoom, 1.24);
-  camera.rotY = Math.atan2(region.center.x, region.center.z + 520) * -0.65;
-  camera.rotX = clamp(region.center.y / 900, -0.45, 0.45);
-  camera.panX = 0;
-  camera.panY = 0;
+  startCameraTween(telescopeTargetForRegion(activeRegion));
 }
 
 function resetSky() {
@@ -1598,6 +1731,7 @@ function beginDrag(event) {
   if (isInteractiveTarget(event.target)) return;
   if (viewMode !== "galaxy" || hoveredRepo) return;
   event.preventDefault();
+  cancelCameraTween();
   pointer = { x: event.clientX, y: event.clientY };
   dragState = {
     x: event.clientX,
@@ -1674,9 +1808,10 @@ appShell.addEventListener(
     if (viewMode !== "galaxy") return;
     if (isInteractiveTarget(event.target)) return;
     event.preventDefault();
+    cancelCameraTween();
     const previousZoom = camera.zoom;
     const delta = event.deltaY > 0 ? -0.1 : 0.1;
-    camera.zoom = clamp(camera.zoom + delta, 0.58, 2.15);
+    camera.zoom = clamp(camera.zoom + delta, 0.46, 2.15);
     const zoomRatio = camera.zoom / previousZoom;
     camera.panX = event.clientX - width * 0.5 - (event.clientX - width * 0.5 - camera.panX) * zoomRatio;
     camera.panY = event.clientY - height * 0.52 - (event.clientY - height * 0.52 - camera.panY) * zoomRatio;
