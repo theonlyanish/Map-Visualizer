@@ -21,15 +21,24 @@ const clearSky = document.querySelector("#clearSky");
 
 const GITHUB_EVENTS_URL = "https://api.github.com/events?per_page=100";
 const API_URLS = window.location.protocol === "file:" ? [GITHUB_EVENTS_URL] : ["/api/github-events"];
-const MAX_REPOS = 100;
-const MAX_METEORS = 180;
-const MAX_BURSTS = 140;
-const MAX_PHENOMENA = 60;
+const MAX_REPOS_STARFALL = 100;
+const MAX_REPOS_GALAXY = 260;
+const MAX_METEORS_STARFALL = 180;
+const MAX_METEORS_GALAXY = 340;
+const MAX_BURSTS_STARFALL = 140;
+const MAX_BURSTS_GALAXY = 220;
+const MAX_PHENOMENA_STARFALL = 60;
+const MAX_PHENOMENA_GALAXY = 120;
 const EVENT_SPAWN_MS = 430;
 const DENSITY_MS = {
   calm: 920,
   normal: 430,
   storm: 135,
+};
+const GALAXY_DENSITY_MS = {
+  calm: 700,
+  normal: 260,
+  storm: 90,
 };
 
 const eventVisuals = {
@@ -84,7 +93,7 @@ const atlasRegions = [
     label: "Infra",
     color: "#f5c86b",
     center: { x: 610, y: -245, z: 90 },
-    layout: "lattice",
+    layout: "union",
     keywords: ["kubernetes", "docker", "terraform", "cloud", "server", "operator", "helm", "infra"],
     orgs: ["kubernetes", "docker", "hashicorp", "cloudflare", "prometheus", "grafana"],
   },
@@ -93,7 +102,7 @@ const atlasRegions = [
     label: "DevTools",
     color: "#c3b5ff",
     center: { x: 540, y: 245, z: -110 },
-    layout: "chain",
+    layout: "belt",
     keywords: ["cli", "tool", "editor", "lint", "format", "compiler", "build", "debug", "test"],
     orgs: ["microsoft", "eslint", "prettier", "webpack", "rollup", "babel"],
   },
@@ -120,7 +129,7 @@ const atlasRegions = [
     label: "Mobile",
     color: "#f7a7d8",
     center: { x: 70, y: 90, z: 310 },
-    layout: "swarm",
+    layout: "atom",
     keywords: ["android", "ios", "swift", "kotlin", "flutter", "react-native", "mobile"],
     orgs: ["flutter", "android", "apple", "ionic-team", "react-native-community"],
   },
@@ -133,18 +142,19 @@ const atlasRegions = [
     keywords: ["rust", "go", "zig", "kernel", "runtime", "node", "deno", "wasm", "system"],
     orgs: ["rust-lang", "golang", "ziglang", "nodejs", "denoland", "bytecodealliance"],
   },
-  {
-    id: "other",
-    label: "Outer rim",
-    color: "#a8aa9a",
-    center: { x: -30, y: 30, z: -340 },
-    layout: "rim",
-    keywords: [],
-    orgs: [],
-  },
 ];
 
-const atlasRegionMap = new Map(atlasRegions.map((region) => [region.id, region]));
+const voidRegion = {
+  id: "void",
+  label: "Open space",
+  color: "#a8aa9a",
+  center: { x: 0, y: 20, z: -40 },
+  layout: "void",
+  keywords: [],
+  orgs: [],
+};
+
+const atlasRegionMap = new Map([...atlasRegions, voidRegion].map((region) => [region.id, region]));
 
 const fallbackRepos = [
   "vercel/next.js",
@@ -216,6 +226,30 @@ const hashString = (value) => {
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+function maxRepos() {
+  return viewMode === "galaxy" ? MAX_REPOS_GALAXY : MAX_REPOS_STARFALL;
+}
+
+function maxMeteors() {
+  return viewMode === "galaxy" ? MAX_METEORS_GALAXY : MAX_METEORS_STARFALL;
+}
+
+function maxBursts() {
+  return viewMode === "galaxy" ? MAX_BURSTS_GALAXY : MAX_BURSTS_STARFALL;
+}
+
+function maxPhenomena() {
+  return viewMode === "galaxy" ? MAX_PHENOMENA_GALAXY : MAX_PHENOMENA_STARFALL;
+}
+
+function maxQueuedEvents() {
+  return viewMode === "galaxy" ? 1400 : 600;
+}
+
+function maxReplayEvents() {
+  return viewMode === "galaxy" ? 1200 : 360;
+}
+
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   width = window.innerWidth;
@@ -248,7 +282,7 @@ function seedStars() {
 
 function placeRepo(repo) {
   const hash = hashString(repo.name);
-  const region = atlasRegionMap.get(repo.regionId) || atlasRegionMap.get("other");
+  const region = atlasRegionMap.get(repo.regionId) || voidRegion;
   const band = (hash % 1000) / 1000;
   const angle = (hash % 6283) / 1000;
   const centerBias = Math.sin(band * Math.PI);
@@ -291,31 +325,45 @@ function regionOffset(region, hash) {
     };
   }
 
-  if (region.layout === "lattice") {
-    const column = hash % 5;
-    const row = (hash >>> 5) % 4;
+  if (region.layout === "union") {
+    const lobe = hash % 5 === 0 ? 0 : hash % 2 === 0 ? -1 : 1;
+    const centerX = lobe * 52;
+    const angle = a + lobe * 0.2;
+    const ovalRadius = Math.sqrt(b) * 92;
     return {
-      x: (column - 2) * 48 + jitterX,
-      y: (row - 1.5) * 42 + jitterY,
-      z: (c - 0.5) * 120,
+      x: centerX + Math.cos(angle) * ovalRadius * 0.86 + jitterX,
+      y: Math.sin(angle) * ovalRadius * 0.62 + jitterY,
+      z: Math.sin(angle * 1.2) * 52 + lobe * 18 + (c - 0.5) * 36,
     };
   }
 
-  if (region.layout === "chain") {
-    const x = (b - 0.5) * 260;
+  if (region.layout === "belt") {
+    const lane = hash % 3;
+    const laneRadius = 54 + lane * 31 + c * 20;
+    const angle = a * 0.82 + lane * 0.54;
     return {
-      x,
-      y: Math.sin(b * Math.PI * 3) * 34 + (c - 0.5) * 56,
-      z: Math.cos(b * Math.PI * 2) * 62,
+      x: Math.cos(angle) * laneRadius * 1.22 + jitterX,
+      y: Math.sin(angle) * laneRadius * 0.44 + (lane - 1) * 26 + jitterY,
+      z: Math.sin(angle * 1.8) * 66 + (b - 0.5) * 42,
     };
   }
 
-  if (region.layout === "ring" || region.layout === "rim") {
-    const radius = region.layout === "rim" ? 120 + c * 62 : 62 + c * 72;
+  if (region.layout === "ring") {
+    const radius = 62 + c * 72;
     return {
       x: Math.cos(a) * radius + jitterX,
       y: Math.sin(a) * radius * 0.72 + jitterY,
       z: Math.sin(a * 2) * 55,
+    };
+  }
+
+  if (region.layout === "void") {
+    const radius = 120 + Math.pow(b, 0.72) * 310;
+    const band = Math.sin(a * 2.4) * 34;
+    return {
+      x: Math.cos(a) * radius * 0.96 + jitterX * 1.8,
+      y: Math.sin(a) * radius * 0.55 + band + jitterY * 1.8,
+      z: Math.sin(a * 1.4) * 160 + (c - 0.5) * 110,
     };
   }
 
@@ -329,13 +377,27 @@ function regionOffset(region, hash) {
     };
   }
 
-  if (region.layout === "swarm") {
-    const lobe = hash % 2 === 0 ? -1 : 1;
-    const radius = 28 + c * 74;
+  if (region.layout === "atom") {
+    if (hash % 7 === 0) {
+      const coreRadius = 10 + c * 24;
+      return {
+        x: Math.cos(a) * coreRadius + jitterX * 0.5,
+        y: Math.sin(a) * coreRadius + jitterY * 0.5,
+        z: (b - 0.5) * 28,
+      };
+    }
+
+    const orbit = hash % 2;
+    const angle = a + orbit * 0.7;
+    const orbitRadius = 58 + c * 70;
+    const thinRadius = orbitRadius * 0.34;
+    const x = Math.cos(angle) * orbitRadius;
+    const y = Math.sin(angle) * thinRadius;
+    const rotation = orbit === 0 ? -0.26 : Math.PI / 2 - 0.26;
     return {
-      x: lobe * 58 + Math.cos(a) * radius * 0.72 + jitterX,
-      y: Math.sin(a) * radius + jitterY,
-      z: lobe * 38 + (b - 0.5) * 75,
+      x: x * Math.cos(rotation) - y * Math.sin(rotation) + jitterX,
+      y: x * Math.sin(rotation) + y * Math.cos(rotation) + jitterY,
+      z: Math.sin(angle) * 58 + (orbit === 0 ? -18 : 18),
     };
   }
 
@@ -352,16 +414,15 @@ function classifyRepo(name) {
   const [owner = "", repo = ""] = lower.split("/");
 
   for (const region of atlasRegions) {
-    if (region.id === "other") continue;
     if (region.orgs.some((org) => owner === org || owner.includes(org))) return region.id;
     if (region.keywords.some((keyword) => repo.includes(keyword) || lower.includes(`-${keyword}`))) {
       return region.id;
     }
   }
 
-  const primaryRegions = atlasRegions.filter((region) => region.id !== "other");
+  const primaryRegions = atlasRegions;
   const hash = hashString(name);
-  if (hash % 10 === 0) return "other";
+  if (hash % 10 === 0) return "void";
   return primaryRegions[hash % primaryRegions.length].id;
 }
 
@@ -413,7 +474,7 @@ function projectRepo(repo) {
 function getRepo(name) {
   if (repoNodes.has(name)) return repoNodes.get(name);
 
-  if (repoNodes.size >= MAX_REPOS) {
+  if (repoNodes.size >= maxRepos()) {
     const dimmest = [...repoNodes.values()].sort((a, b) => a.energy - b.energy)[0];
     if (dimmest) {
       repoNodes.delete(dimmest.name);
@@ -441,6 +502,15 @@ function getRepo(name) {
   placeRepo(repo);
   repoNodes.set(name, repo);
   return repo;
+}
+
+function trimReposToCapacity() {
+  while (repoNodes.size > maxRepos()) {
+    const dimmest = [...repoNodes.values()].sort((a, b) => a.energy - b.energy)[0];
+    if (!dimmest) break;
+    repoNodes.delete(dimmest.name);
+  }
+  updateRepoCount();
 }
 
 function updateRepoCount() {
@@ -477,7 +547,7 @@ function enqueueEvents(events, source = "live") {
   eventQueue.push(...fresh);
   trimEventQueue();
   replayDeck.push(...fresh);
-  if (replayDeck.length > 360) replayDeck.splice(0, replayDeck.length - 360);
+  if (replayDeck.length > maxReplayEvents()) replayDeck.splice(0, replayDeck.length - maxReplayEvents());
   totalEvents += fresh.length;
   eventCount.textContent = totalEvents.toLocaleString();
   signalStatus.textContent = source;
@@ -581,8 +651,8 @@ function createFallbackEvents(count = 12) {
 }
 
 function trimEventQueue() {
-  if (eventQueue.length > 600) {
-    eventQueue.splice(0, eventQueue.length - 600);
+  if (eventQueue.length > maxQueuedEvents()) {
+    eventQueue.splice(0, eventQueue.length - maxQueuedEvents());
   }
 }
 
@@ -610,7 +680,7 @@ function fallbackRepoForRegion(regionId) {
     security: "openssl/openssl",
     mobile: "flutter/flutter",
     systems: "rust-lang/rust",
-    other: "octocat/hello-world",
+    void: "octocat/hello-world",
   };
   return examples[regionId] || "octocat/hello-world";
 }
@@ -723,7 +793,7 @@ function spawnMeteor(event) {
     landed: false,
   });
 
-  if (meteors.length > MAX_METEORS) meteors.shift();
+  if (meteors.length > maxMeteors()) meteors.shift();
 }
 
 function spawnSupernova(event) {
@@ -772,8 +842,8 @@ function spawnConstellationIgnition(event) {
 }
 
 function trimPhenomena() {
-  if (phenomena.length > MAX_PHENOMENA) {
-    phenomena.splice(0, phenomena.length - MAX_PHENOMENA);
+  if (phenomena.length > maxPhenomena()) {
+    phenomena.splice(0, phenomena.length - maxPhenomena());
   }
 }
 
@@ -802,7 +872,7 @@ function createBurst(x, y, color, type) {
       color,
     });
   }
-  if (bursts.length > MAX_BURSTS) bursts.splice(0, bursts.length - MAX_BURSTS);
+  if (bursts.length > maxBursts()) bursts.splice(0, bursts.length - maxBursts());
 }
 
 function updateDock(events) {
@@ -883,9 +953,9 @@ function drawRegions(time) {
 
   for (const { region, projected } of projectedRegions) {
     const isActive = isRegionVisible(region.id);
-    const alpha = region.id === "other" ? 0.14 : isActive ? 0.34 : 0.055;
+    const alpha = isActive ? 0.34 : 0.055;
     const pulse = 1 + Math.sin(time / 1300 + region.center.x) * 0.04;
-    const radius = Math.max(1, (132 + (region.id === "other" ? 30 : 0)) * projected.scale * pulse);
+    const radius = Math.max(1, 132 * projected.scale * pulse);
 
     ctx.beginPath();
     const glow = ctx.createRadialGradient(
@@ -905,24 +975,40 @@ function drawRegions(time) {
     drawRegionDust(region, projected, radius, isActive, time);
     drawRegionOrbitals(region, projected, radius, isActive, time);
 
-    if (projected.scale > 0.45 && region.id !== "other") {
-      let labelX = clamp(projected.x, 138, width - 118);
-      let labelY = clamp(projected.y - radius * 0.48, 126, height - 84);
-      if (labelX < 330 && labelY < 164) {
-        labelX = 330;
-        labelY = 164;
+    if (projected.scale > 0.45) {
+      const label = regionLabelPosition(region, projected, radius);
+      if (label.x < -120 || label.x > width + 120 || label.y < -40 || label.y > height + 90) {
+        continue;
       }
       ctx.fillStyle = `rgba(244, 242, 232, ${isActive ? 0.78 : 0.28})`;
       ctx.font = "650 12px Inter, system-ui, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText(region.label, labelX, labelY);
+      ctx.fillText(region.label, label.x, label.y);
     }
   }
 }
 
+function regionLabelPosition(region, projected, radius) {
+  const offsets = {
+    ml: { x: 0, y: -104 },
+    frontend: { x: -8, y: -92 },
+    infra: { x: 0, y: -82 },
+    devtools: { x: 0, y: 96 },
+    data: { x: 0, y: 104 },
+    security: { x: -16, y: 98 },
+    mobile: { x: 0, y: -92 },
+    systems: { x: 10, y: -94 },
+  };
+  const offset = offsets[region.id] || { x: 0, y: -radius * 0.48 };
+  return {
+    x: projected.x + offset.x * projected.scale,
+    y: projected.y + offset.y * projected.scale,
+  };
+}
+
 function drawRegionDust(region, projected, radius, isActive, time) {
   const hash = hashString(region.id);
-  const count = region.id === "other" ? 20 : 30;
+  const count = region.layout === "union" || region.layout === "belt" || region.layout === "atom" ? 38 : 30;
   for (let i = 0; i < count; i += 1) {
     const seed = hashString(`${region.id}-${i}-${hash}`);
     const drift = time / (42000 + (seed % 18000));
@@ -940,7 +1026,7 @@ function drawRegionDust(region, projected, radius, isActive, time) {
 }
 
 function drawRegionOrbitals(region, projected, radius, isActive, time) {
-  const orbitCount = region.id === "other" ? 1 : 2;
+  const orbitCount = 2;
   const alpha = isActive ? 0.18 : 0.045;
   ctx.save();
   ctx.translate(projected.x, projected.y);
@@ -967,43 +1053,58 @@ function drawRegionOrbitals(region, projected, radius, isActive, time) {
     return;
   }
 
-  if (region.layout === "lattice") {
+  if (region.layout === "union") {
     ctx.strokeStyle = hexToRgba(region.color, alpha);
-    ctx.lineWidth = 1 / Math.max(0.6, projected.scale);
-    for (let x = -96; x <= 96; x += 48) {
+    ctx.lineWidth = 1.15 / Math.max(0.6, projected.scale);
+    for (const x of [-52, 52]) {
       ctx.beginPath();
-      ctx.moveTo(x, -68);
-      ctx.lineTo(x, 68);
-      ctx.stroke();
-    }
-    for (let y = -63; y <= 63; y += 42) {
-      ctx.beginPath();
-      ctx.moveTo(-112, y);
-      ctx.lineTo(112, y);
+      ctx.ellipse(x, 0, 92, 58, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.restore();
     return;
   }
 
-  if (region.layout === "chain") {
+  if (region.layout === "atom") {
+    ctx.strokeStyle = hexToRgba(region.color, alpha);
+    ctx.lineWidth = 1.15 / Math.max(0.6, projected.scale);
+    for (const rotation of [-0.26, Math.PI / 2 - 0.26]) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 122, 42, rotation, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = hexToRgba(region.color, isActive ? 0.24 : 0.08);
+    ctx.beginPath();
+    ctx.arc(0, 0, 18, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+
+  if (region.layout === "belt") {
     ctx.strokeStyle = hexToRgba(region.color, alpha);
     ctx.lineWidth = 1 / Math.max(0.6, projected.scale);
-    ctx.beginPath();
-    for (let step = 0; step < 30; step += 1) {
-      const t = step / 29;
-      const x = (t - 0.5) * 260;
-      const y = Math.sin(t * Math.PI * 3) * 34;
-      if (step === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
+    for (let lane = 0; lane < 3; lane += 1) {
+      const orbitRadius = 62 + lane * 31;
+      ctx.beginPath();
+      ctx.ellipse(0, (lane - 1) * 18, orbitRadius * 1.22, orbitRadius * 0.42, -0.18 + lane * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
     }
-    ctx.stroke();
+
+    for (let spoke = 0; spoke < 8; spoke += 1) {
+      const angle = (spoke / 8) * Math.PI * 2 + time / 22000;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * 46, Math.sin(angle) * 20);
+      ctx.lineTo(Math.cos(angle) * 146, Math.sin(angle) * 52);
+      ctx.stroke();
+    }
     ctx.restore();
     return;
   }
 
   for (let i = 0; i < orbitCount; i += 1) {
-    const orbitRadius = (region.layout === "ring" || region.layout === "rim" ? 92 : radius / projected.scale) * (0.42 + i * 0.22);
+    const orbitRadius = (region.layout === "ring" ? 92 : radius / projected.scale) * (0.42 + i * 0.22);
     ctx.beginPath();
     ctx.strokeStyle = hexToRgba(region.color, Math.max(0.025, alpha - i * 0.04));
     ctx.lineWidth = 1 / Math.max(0.6, projected.scale);
@@ -1028,7 +1129,7 @@ function drawRepos(dt) {
   for (const repo of visibleRepos) {
     repo.energy = Math.max(0, repo.energy - dt * 0.011);
     repo.pulse = Math.max(0, repo.pulse - dt * 0.0024);
-    const region = atlasRegionMap.get(repo.regionId) || atlasRegionMap.get("other");
+    const region = atlasRegionMap.get(repo.regionId) || voidRegion;
     const inFocus = isRegionVisible(repo.regionId);
     const isGalaxy = viewMode === "galaxy";
     const color = isGalaxy ? region.color : eventVisuals[repo.lastEvent?.type]?.color || eventVisuals.default.color;
@@ -1278,7 +1379,7 @@ function updateHoverCard() {
   }
 
   const visual = eventVisuals[hoveredRepo.lastEvent.type] || eventVisuals.default;
-  const region = atlasRegionMap.get(hoveredRepo.regionId) || atlasRegionMap.get("other");
+  const region = atlasRegionMap.get(hoveredRepo.regionId) || voidRegion;
   hoverType.textContent = visual.label;
   hoverRepo.textContent = hoveredRepo.name;
   hoverActor.textContent =
@@ -1337,6 +1438,8 @@ function setViewMode(nextViewMode) {
     camera.zoom = 1.2;
   }
 
+  setDensity(activeDensity);
+  trimReposToCapacity();
   updateSurfaceCursor();
 }
 
@@ -1356,7 +1459,8 @@ function setMode(nextMode) {
 
 function setDensity(nextDensity) {
   activeDensity = nextDensity;
-  spawnInterval = DENSITY_MS[activeDensity] || DENSITY_MS.normal;
+  const densityMap = viewMode === "galaxy" ? GALAXY_DENSITY_MS : DENSITY_MS;
+  spawnInterval = densityMap[activeDensity] || densityMap.normal;
   for (const button of densityButtons) {
     button.classList.toggle("is-active", button.dataset.density === activeDensity);
   }
