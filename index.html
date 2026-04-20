@@ -5,21 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Starfall turns public GitHub activity into a live meteor shower of pushes, stars, forks, issues, pull requests, and releases."
+      content="Starfall Atlas turns public GitHub activity into a navigable code galaxy of repos, regions, and live events."
     />
-    <title>Starfall | GitHub Activity Meteor Shower</title>
+    <title>Starfall Atlas | GitHub Code Atlas</title>
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/favicon.png" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <main class="app-shell">
-      <canvas id="sky" aria-label="Animated GitHub activity meteor shower"></canvas>
+      <canvas id="sky" aria-label="Interactive GitHub code atlas"></canvas>
 
       <section class="brand-panel" aria-labelledby="app-title">
-        <p class="eyebrow">GitHub public events</p>
+        <p id="appKicker" class="eyebrow">GitHub activity</p>
         <h1 id="app-title">Starfall</h1>
-        <p class="lede">Open-source activity, rendered as a meteor field.</p>
+        <p id="appLede" class="lede">Open-source activity, rendered as a live meteor field.</p>
       </section>
 
       <section class="status-panel" aria-label="Live status">
@@ -37,6 +37,11 @@
         </div>
       </section>
 
+      <section class="view-panel" aria-label="View mode">
+        <button class="view-button is-active" type="button" data-view="starfall">Starfall</button>
+        <button class="view-button" type="button" data-view="galaxy">Galaxy</button>
+      </section>
+
       <section class="control-panel" aria-label="Visualization controls">
         <button class="mode-button is-active" type="button" data-mode="live">Live</button>
         <button class="mode-button" type="button" data-mode="quiet">Quiet</button>
@@ -48,6 +53,20 @@
         <button class="density-button is-active" type="button" data-density="normal">Pulse</button>
         <button class="density-button" type="button" data-density="storm">Storm</button>
       </section>
+
+      <section class="region-panel" aria-label="Code atlas regions">
+        <button class="region-button is-active" type="button" data-region="all">All regions</button>
+        <button class="region-button" type="button" data-region="ml">Machine learning</button>
+        <button class="region-button" type="button" data-region="frontend">Frontend</button>
+        <button class="region-button" type="button" data-region="infra">Infra</button>
+        <button class="region-button" type="button" data-region="devtools">DevTools</button>
+        <button class="region-button" type="button" data-region="data">Data</button>
+        <button class="region-button" type="button" data-region="security">Security</button>
+        <button class="region-button" type="button" data-region="mobile">Mobile</button>
+        <button class="region-button" type="button" data-region="systems">Systems</button>
+      </section>
+
+      <p class="atlas-hint">Drag to pan - shift-drag to rotate - scroll to zoom</p>
 
       <section class="filter-panel" aria-label="Event filters">
         <button class="filter-button is-active" type="button" data-filter="PushEvent">

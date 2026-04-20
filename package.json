@@ -1,0 +1,9 @@
+{
+  "name": "starfall-atlas",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A navigable code atlas powered by public GitHub activity.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

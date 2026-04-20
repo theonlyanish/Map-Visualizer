@@ -43,6 +43,7 @@ select {
   width: 100vw;
   height: 100svh;
   overflow: hidden;
+  touch-action: none;
   background:
     radial-gradient(circle at 75% 30%, rgba(143, 240, 200, 0.1), transparent 30%),
     radial-gradient(circle at 25% 85%, rgba(245, 200, 107, 0.08), transparent 34%),
@@ -67,23 +68,32 @@ select {
   width: 100%;
   height: 100%;
   display: block;
+  cursor: grab;
+  touch-action: none;
+}
+
+#sky:active {
+  cursor: grabbing;
 }
 
 .brand-panel,
 .status-panel,
+.view-panel,
 .control-panel,
 .density-panel,
+.region-panel,
 .filter-panel,
 .event-dock,
-.hover-card {
+.hover-card,
+.atlas-hint {
   position: absolute;
   z-index: 2;
 }
 
 .brand-panel {
-  top: 48px;
-  left: 56px;
-  width: min(420px, calc(100vw - 36px));
+  top: 28px;
+  left: 32px;
+  width: min(290px, calc(100vw - 36px));
   pointer-events: none;
 }
 
@@ -98,29 +108,29 @@ select {
 }
 
 .eyebrow {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
+  margin: 0 0 6px;
+  font-size: 0.68rem;
   text-transform: uppercase;
 }
 
 h1 {
   margin: 0;
-  font-size: 8rem;
-  line-height: 0.88;
+  font-size: 2.6rem;
+  line-height: 0.94;
   letter-spacing: 0;
 }
 
 .lede {
-  max-width: 27ch;
-  margin: 18px 0 0;
+  max-width: 28ch;
+  margin: 8px 0 0;
   color: rgba(244, 242, 232, 0.78);
-  font-size: 1.2rem;
+  font-size: 0.9rem;
   line-height: 1.35;
 }
 
 .status-panel {
-  top: 34px;
-  right: 40px;
+  top: 24px;
+  right: 28px;
   display: grid;
   grid-template-columns: repeat(3, minmax(72px, auto));
   gap: 1px;
@@ -155,9 +165,21 @@ h1 {
   white-space: nowrap;
 }
 
+.view-panel {
+  top: 92px;
+  right: 28px;
+  display: flex;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  backdrop-filter: blur(18px);
+}
+
 .control-panel {
-  right: 40px;
-  bottom: 34px;
+  right: 28px;
+  bottom: 28px;
   display: flex;
   gap: 8px;
   padding: 8px;
@@ -168,8 +190,8 @@ h1 {
 }
 
 .density-panel {
-  right: 40px;
-  bottom: 96px;
+  right: 28px;
+  bottom: 90px;
   display: flex;
   gap: 6px;
   padding: 7px;
@@ -179,7 +201,32 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
-.mode-button {
+.region-panel {
+  top: auto;
+  left: 32px;
+  bottom: 118px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: min(520px, calc(100vw - 36px));
+}
+
+.atlas-hint {
+  right: 28px;
+  bottom: 150px;
+  margin: 0;
+  color: rgba(244, 242, 232, 0.5);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
+
+.app-shell:not(.is-galaxy) .region-panel,
+.app-shell:not(.is-galaxy) .atlas-hint {
+  display: none;
+}
+
+.mode-button,
+.view-button {
   min-width: 84px;
   min-height: 40px;
   border: 1px solid transparent;
@@ -195,19 +242,24 @@ h1 {
 }
 
 .mode-button:hover,
-.mode-button:focus-visible {
+.mode-button:focus-visible,
+.view-button:hover,
+.view-button:focus-visible {
   color: var(--ink);
   transform: translateY(-1px);
 }
 
 .mode-button.is-active,
-.density-button.is-active {
+.view-button.is-active,
+.density-button.is-active,
+.region-button.is-active {
   border-color: rgba(143, 240, 200, 0.42);
   background: rgba(143, 240, 200, 0.1);
   color: var(--accent);
 }
 
-.density-button {
+.density-button,
+.region-button {
   min-width: 70px;
   min-height: 34px;
   border: 1px solid transparent;
@@ -223,14 +275,22 @@ h1 {
 }
 
 .density-button:hover,
-.density-button:focus-visible {
+.density-button:focus-visible,
+.region-button:hover,
+.region-button:focus-visible {
   color: var(--ink);
   transform: translateY(-1px);
 }
 
+.region-button {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 0.78rem;
+}
+
 .filter-panel {
-  left: 56px;
-  bottom: 40px;
+  left: 32px;
+  bottom: 32px;
   display: flex;
   flex-wrap: wrap;
   gap: 12px 18px;
@@ -275,7 +335,7 @@ h1 {
 
 .event-dock {
   left: 50%;
-  bottom: 40px;
+  bottom: 32px;
   display: grid;
   width: min(410px, 38vw);
   gap: 8px;
@@ -392,7 +452,7 @@ h1 {
   }
 
   h1 {
-    font-size: 4.1rem;
+    font-size: 2.2rem;
   }
 
   .lede {
@@ -403,7 +463,7 @@ h1 {
   .status-panel {
     top: auto;
     right: auto;
-    bottom: 88px;
+    bottom: 190px;
     left: 18px;
     width: calc(100vw - 36px);
     grid-template-columns: repeat(3, 1fr);
@@ -414,6 +474,14 @@ h1 {
     padding: 10px;
   }
 
+  .view-panel {
+    top: auto;
+    right: 18px;
+    bottom: 132px;
+    left: 18px;
+    justify-content: space-between;
+  }
+
   .control-panel {
     right: 18px;
     bottom: 18px;
@@ -421,7 +489,8 @@ h1 {
     justify-content: space-between;
   }
 
-  .mode-button {
+  .mode-button,
+  .view-button {
     min-width: 0;
     flex: 1;
   }
@@ -431,6 +500,11 @@ h1 {
     bottom: 74px;
     left: 18px;
     justify-content: space-between;
+  }
+
+  .region-panel,
+  .atlas-hint {
+    display: none;
   }
 
   .density-button {
@@ -444,7 +518,7 @@ h1 {
 
   .event-dock {
     right: 18px;
-    bottom: 202px;
+    bottom: 322px;
     left: 18px;
     width: auto;
     transform: none;
