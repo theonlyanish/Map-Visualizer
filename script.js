@@ -84,7 +84,7 @@ const atlasRegions = [
     label: "Frontend",
     color: "#78d7ff",
     center: { x: -90, y: -390, z: -120 },
-    layout: "arc",
+    layout: "mesh",
     keywords: ["react", "vue", "svelte", "next", "vite", "css", "ui", "web", "tailwind", "component"],
     orgs: ["vercel", "facebook", "sveltejs", "vitejs", "tailwindlabs", "vuejs"],
   },
@@ -226,6 +226,14 @@ const hashString = (value) => {
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+function logApi(...args) {
+  console.log("[Starfall API]", ...args);
+}
+
+function warnApi(...args) {
+  console.warn("[Starfall API]", ...args);
+}
+
 function maxRepos() {
   return viewMode === "galaxy" ? MAX_REPOS_GALAXY : MAX_REPOS_STARFALL;
 }
@@ -315,14 +323,45 @@ function regionOffset(region, hash) {
     };
   }
 
-  if (region.layout === "arc") {
-    const angle = -2.7 + b * 2.15;
-    const radius = 88 + c * 72;
+  if (region.layout === "mesh") {
+    const column = hash % 5;
+    const row = (hash >>> 5) % 4;
+    const cellX = (column - 2) * 44;
+    const cellY = (row - 1.5) * 38;
+    const angle = a + row * 0.38;
+    const scatter = 10 + c * 34;
     return {
-      x: Math.cos(angle) * radius + jitterX,
-      y: -22 + Math.sin(angle) * radius * 0.58 + jitterY,
-      z: (c - 0.5) * 110,
+      x: cellX + Math.cos(angle) * scatter + jitterX,
+      y: cellY + Math.sin(angle) * scatter * 0.78 + jitterY,
+      z: Math.sin(angle * 1.4) * 52 + (column - 2) * 10 + (c - 0.5) * 34,
     };
+  }
+
+  if (region.layout === "mesh") {
+    ctx.strokeStyle = hexToRgba(region.color, alpha);
+    ctx.lineWidth = 1 / Math.max(0.6, projected.scale);
+
+    for (let row = 0; row < 4; row += 1) {
+      const y = (row - 1.5) * 38;
+      ctx.beginPath();
+      ctx.moveTo(-118, y);
+      ctx.bezierCurveTo(-60, y - 20, 44, y + 18, 118, y - 4);
+      ctx.stroke();
+    }
+
+    for (let column = 0; column < 5; column += 1) {
+      const x = (column - 2) * 44;
+      ctx.beginPath();
+      ctx.moveTo(x, -82);
+      ctx.bezierCurveTo(x + 22, -32, x - 20, 24, x + 16, 84);
+      ctx.stroke();
+    }
+
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 132, 82, -0.08, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    return;
   }
 
   if (region.layout === "union") {
@@ -535,6 +574,7 @@ function normalizeEvent(event) {
 }
 
 function enqueueEvents(events, source = "live") {
+  signalStatus.textContent = source;
   const fresh = [];
   for (const event of events.map(normalizeEvent).reverse()) {
     if (seenEvents.has(event.id)) continue;
@@ -550,7 +590,6 @@ function enqueueEvents(events, source = "live") {
   if (replayDeck.length > maxReplayEvents()) replayDeck.splice(0, replayDeck.length - maxReplayEvents());
   totalEvents += fresh.length;
   eventCount.textContent = totalEvents.toLocaleString();
-  signalStatus.textContent = source;
 }
 
 async function fetchEvents() {
@@ -558,11 +597,19 @@ async function fetchEvents() {
 
   try {
     signalStatus.textContent = "syncing";
+    logApi("sync start", { endpoints: API_URLS, etag: Boolean(etag) });
     const result = await requestGithubEvents();
     schedulePoll(Math.max(45, result.pollInterval) * 1000);
+    logApi("sync result", {
+      status: result.status,
+      source: result.source,
+      events: Array.isArray(result.events) ? result.events.length : "not-array",
+      nextPollSeconds: Math.max(45, result.pollInterval),
+    });
 
     if (result.status === 304) {
       signalStatus.textContent = "steady";
+      logApi("no new GitHub events", { source: result.source });
       return;
     }
 
@@ -573,16 +620,18 @@ async function fetchEvents() {
       return;
     }
 
-    if (result.source === "local") {
+    if (result.source === "demo") {
       const fallbackEvents = createFallbackEvents(36);
-      enqueueEvents(fallbackEvents, "local");
+      warnApi("using demo fallback events", { count: fallbackEvents.length });
+      enqueueEvents(fallbackEvents, "demo");
       updateDock(fallbackEvents.slice(0, 4).map(normalizeEvent));
     }
   } catch (error) {
-    signalStatus.textContent = "local";
+    warnApi("sync failed, using demo fallback", error);
+    signalStatus.textContent = "demo";
     schedulePoll(90000);
     if (replayDeck.length === 0) {
-      enqueueEvents(createFallbackEvents(36), "local");
+      enqueueEvents(createFallbackEvents(36), "demo");
     }
   }
 }
@@ -597,6 +646,7 @@ async function requestGithubEvents() {
       };
       if (etag) headers["If-None-Match"] = etag;
 
+      logApi("request", { url, hasEtag: Boolean(etag) });
       const response = await fetch(url, { headers });
       lastFetchAt = Date.now();
 
@@ -604,16 +654,32 @@ async function requestGithubEvents() {
       if (nextEtag) etag = nextEtag;
 
       const pollInterval = Number(response.headers.get("x-poll-interval")) || 60;
+      const source = response.headers.get("x-starfall-source") || "live";
+      logApi("response", {
+        url,
+        status: response.status,
+        ok: response.ok,
+        source,
+        rateLimitRemaining: response.headers.get("x-ratelimit-remaining"),
+        rateLimitReset: response.headers.get("x-ratelimit-reset"),
+        pollInterval,
+      });
+
       if (response.status === 304) {
         return { status: 304, source: "steady", pollInterval, events: [] };
       }
 
       if (!response.ok) {
-        throw new Error(`${url} returned ${response.status}`);
+        let body = "";
+        try {
+          body = await response.text();
+        } catch (bodyError) {
+          body = `Could not read body: ${bodyError.message}`;
+        }
+        throw new Error(`${url} returned ${response.status}: ${body.slice(0, 180)}`);
       }
 
       const events = await response.json();
-      const source = response.headers.get("x-starfall-source") || (url.startsWith("/api/") ? "proxy" : "live");
       return {
         status: response.status,
         source,
@@ -621,6 +687,7 @@ async function requestGithubEvents() {
         events,
       };
     } catch (error) {
+      warnApi("request failed", { url, message: error.message });
       errors.push(error.message);
     }
   }
@@ -699,7 +766,6 @@ function spawnFromQueue(now) {
   if (!event) {
     eventQueue.push(...createFallbackEvents(4).map(normalizeEvent));
     trimEventQueue();
-    signalStatus.textContent = "filtered";
     return;
   }
 
@@ -783,8 +849,8 @@ function spawnMeteor(event) {
     y: startY,
     sx: startX,
     sy: startY,
-    ox: (Math.random() - 0.5) * 22,
-    oy: (Math.random() - 0.5) * 22,
+    ox: (Math.random() - 0.5) * 6,
+    oy: (Math.random() - 0.5) * 6,
     tx: target.x,
     ty: target.y,
     age: 0,
@@ -1008,7 +1074,10 @@ function regionLabelPosition(region, projected, radius) {
 
 function drawRegionDust(region, projected, radius, isActive, time) {
   const hash = hashString(region.id);
-  const count = region.layout === "union" || region.layout === "belt" || region.layout === "atom" ? 38 : 30;
+  const count =
+    region.layout === "mesh" || region.layout === "union" || region.layout === "belt" || region.layout === "atom"
+      ? 42
+      : 30;
   for (let i = 0; i < count; i += 1) {
     const seed = hashString(`${region.id}-${i}-${hash}`);
     const drift = time / (42000 + (seed % 18000));
@@ -1232,8 +1301,7 @@ function drawMeteors(dt) {
     if (t >= 1) {
       if (!meteor.landed) {
         markRepoImpact(meteor.repo, meteor.event);
-        const center = projectRepo(meteor.repo);
-        createBurst(center.x, center.y, meteor.visual.color, meteor.event.type);
+        createBurst(meteor.tx, meteor.ty, meteor.visual.color, meteor.event.type);
         meteor.landed = true;
       }
       meteors.splice(i, 1);
