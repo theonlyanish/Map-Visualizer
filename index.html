@@ -5,21 +5,84 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Starfall Atlas turns public GitHub activity into a navigable code galaxy of repos, regions, and live events."
+      content="Starfall Atlas is an interactive GitHub activity visualizer that maps live public repository events into a navigable code atlas of trending open-source projects."
     />
-    <title>Starfall Atlas | GitHub Code Atlas</title>
+    <meta
+      name="keywords"
+      content="GitHub activity visualizer, GitHub map, open source discovery, repository explorer, code atlas, GitHub events, developer tools, live GitHub activity"
+    />
+    <meta name="author" content="Starfall Atlas" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <meta
+      name="googlebot"
+      content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1"
+    />
+    <meta name="theme-color" content="#050604" />
+    <meta name="application-name" content="Starfall Atlas" />
+    <meta name="apple-mobile-web-app-title" content="Starfall Atlas" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Starfall Atlas" />
+    <meta property="og:title" content="Starfall Atlas | Live GitHub Activity Visualizer" />
+    <meta
+      property="og:description"
+      content="Explore live public GitHub events through an interactive code atlas of repositories, regions, and open-source activity."
+    />
+    <meta property="og:url" content="__SITE_ORIGIN__/" />
+    <meta property="og:image" content="__SITE_ORIGIN__/assets/social-preview.svg" />
+    <meta property="og:image:alt" content="Starfall Atlas live GitHub activity visualizer preview" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Starfall Atlas | Live GitHub Activity Visualizer" />
+    <meta
+      name="twitter:description"
+      content="Explore live public GitHub events through an interactive code atlas of repositories, regions, and open-source activity."
+    />
+    <meta name="twitter:image" content="__SITE_ORIGIN__/assets/social-preview.svg" />
+    <link rel="canonical" href="__SITE_ORIGIN__/" />
+    <title>Starfall Atlas | Live GitHub Activity Visualizer</title>
     <link rel="icon" type="image/png" href="assets/favicon.png" />
     <link rel="apple-touch-icon" href="assets/favicon.png" />
+    <link rel="manifest" href="site.webmanifest" />
     <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "Starfall Atlas",
+            "url": "__SITE_ORIGIN__/",
+            "description": "An interactive GitHub activity visualizer for exploring public repository events as a navigable code atlas."
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Starfall Atlas",
+            "applicationCategory": "DeveloperApplication",
+            "operatingSystem": "Web",
+            "url": "__SITE_ORIGIN__/",
+            "image": "__SITE_ORIGIN__/assets/social-preview.svg",
+            "description": "Starfall Atlas turns live public GitHub activity into a navigable code galaxy with regions, event filters, and interactive repository exploration.",
+            "offers": {
+              "@type": "Offer",
+              "price": "0",
+              "priceCurrency": "USD"
+            }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <main class="app-shell">
+    <main class="app-shell" aria-label="Starfall Atlas interactive visualization">
       <canvas id="sky" aria-label="Interactive GitHub code atlas"></canvas>
 
       <section class="brand-panel" aria-labelledby="app-title">
         <p id="appKicker" class="eyebrow">GitHub activity</p>
-        <h1 id="app-title">Starfall</h1>
-        <p id="appLede" class="lede">Open-source activity, rendered as a live meteor field.</p>
+        <h1 id="app-title">Starfall Atlas</h1>
+        <p id="appLede" class="lede">
+          Explore live public GitHub activity through a navigable map of repositories, regions, and event
+          signals.
+        </p>
       </section>
 
       <section class="status-panel" aria-label="Live status">
@@ -120,6 +183,66 @@
         <small id="hoverActor">Actor</small>
       </aside>
     </main>
+
+    <section class="seo-content" aria-labelledby="seo-title">
+      <div class="seo-grid">
+        <div class="seo-intro">
+          <p class="seo-kicker">About the project</p>
+          <h2 id="seo-title">A live GitHub activity visualizer for open-source discovery</h2>
+          <p>
+            Starfall Atlas helps people explore public GitHub activity in a more visual way. Instead of
+            scanning raw event feeds, visitors can discover repositories, watch event patterns, and move
+            through topic regions such as machine learning, frontend, infrastructure, security, mobile, and
+            systems.
+          </p>
+          <p>
+            The atlas polls GitHub's public Events API, groups repositories into regions, and renders pushes,
+            stars, forks, pull requests, issues, comments, and releases as animated signals. That makes the
+            site useful for developers, open-source maintainers, students, and anyone tracking what is active
+            across the public GitHub ecosystem.
+          </p>
+        </div>
+
+        <div class="seo-card">
+          <h3>What you can do in Starfall Atlas</h3>
+          <ul class="seo-list">
+            <li>Browse live public GitHub events in an interactive visual map.</li>
+            <li>Switch between Starfall and Galaxy views for different exploration modes.</li>
+            <li>Filter event types such as pushes, forks, pull requests, issues, comments, and releases.</li>
+            <li>Focus on topic regions to find activity in different parts of the open-source landscape.</li>
+            <li>Open repository pages directly from visible nodes in the atlas.</li>
+          </ul>
+        </div>
+
+        <div class="seo-card">
+          <h3>How the site works</h3>
+          <p>
+            Starfall Atlas uses public GitHub event data, a lightweight proxy, and local classification rules
+            to place repositories into stable visual regions. If the live feed is unavailable, the experience
+            gracefully falls back to demo data so the interface remains understandable.
+          </p>
+        </div>
+
+        <div class="seo-card">
+          <h3>Who this site is for</h3>
+          <p>
+            This site is designed for people who want to discover trending repositories, monitor open-source
+            activity, browse developer ecosystems, and understand how GitHub event streams connect across
+            different technical domains.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <noscript>
+      <section class="noscript-panel" aria-label="No JavaScript fallback">
+        <h2>Starfall Atlas</h2>
+        <p>
+          Starfall Atlas is an interactive GitHub activity visualizer. JavaScript is required to render the
+          live code atlas, repository map, and event stream.
+        </p>
+      </section>
+    </noscript>
 
     <script src="script.js"></script>
   </body>

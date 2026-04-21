@@ -1,0 +1,16 @@
+{
+  "name": "Starfall Atlas",
+  "short_name": "Starfall",
+  "description": "An interactive GitHub activity visualizer that maps live public repository events into a navigable code atlas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050604",
+  "theme_color": "#050604",
+  "icons": [
+    {
+      "src": "/assets/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
