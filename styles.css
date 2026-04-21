@@ -28,9 +28,7 @@ body {
 }
 
 body {
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: var(--field);
+  overflow: hidden;
 }
 
 button,
@@ -42,7 +40,7 @@ select {
 
 .app-shell {
   position: relative;
-  width: 100%;
+  width: 100vw;
   height: 100svh;
   overflow: hidden;
   touch-action: none;
@@ -436,27 +434,9 @@ h1 {
   font-size: 0.78rem;
 }
 
-.seo-content {
-  position: relative;
-  z-index: 1;
-  padding: 72px 32px 88px;
-  border-top: 1px solid rgba(244, 242, 232, 0.08);
-  background:
-    radial-gradient(circle at top left, rgba(143, 240, 200, 0.08), transparent 30%),
-    linear-gradient(180deg, rgba(7, 9, 6, 0.98) 0%, #050604 100%);
-}
-
-.seo-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
-  gap: 22px;
-  max-width: 1120px;
-  margin: 0 auto;
-}
-
-.seo-intro,
-.seo-card,
 .noscript-panel {
+  max-width: 1120px;
+  margin: 20px auto 88px;
   padding: 22px;
   border: 1px solid rgba(244, 242, 232, 0.1);
   border-radius: 18px;
@@ -465,34 +445,12 @@ h1 {
   backdrop-filter: blur(14px);
 }
 
-.seo-kicker {
-  margin: 0 0 10px;
-  color: var(--accent);
-  font-size: 0.76rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.seo-content h2,
-.seo-content h3,
 .noscript-panel h2 {
   margin: 0 0 12px;
   color: var(--ink);
-}
-
-.seo-content h2 {
-  font-size: clamp(1.8rem, 2.4vw, 2.6rem);
-  line-height: 1.05;
-}
-
-.seo-content h3,
-.noscript-panel h2 {
   font-size: 1.05rem;
 }
 
-.seo-content p,
-.seo-list,
 .noscript-panel p {
   margin: 0;
   color: rgba(244, 242, 232, 0.78);
@@ -500,23 +458,20 @@ h1 {
   line-height: 1.72;
 }
 
-.seo-intro p + p,
-.seo-card p + p,
 .noscript-panel p + p {
   margin-top: 12px;
 }
 
-.seo-list {
-  padding-left: 1.2rem;
-}
-
-.seo-list li + li {
-  margin-top: 10px;
-}
-
-.noscript-panel {
-  max-width: 1120px;
-  margin: 20px auto 88px;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 @keyframes dock-in {
@@ -528,8 +483,7 @@ h1 {
 
 @media (max-width: 760px) {
   body {
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .brand-panel {
@@ -614,17 +568,6 @@ h1 {
     display: none;
   }
 
-  .seo-content {
-    padding: 52px 18px 72px;
-  }
-
-  .seo-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-
-  .seo-intro,
-  .seo-card,
   .noscript-panel {
     padding: 18px;
     border-radius: 14px;
